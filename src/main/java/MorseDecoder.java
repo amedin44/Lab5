@@ -50,11 +50,16 @@ public class MorseDecoder {
          */
         int totalBinCount = (int) Math.ceil(inputFile.getNumFrames() / BIN_SIZE);
         double[] returnBuffer = new double[totalBinCount];
-
         double[] sampleBuffer = new double[BIN_SIZE * inputFile.getNumChannels()];
         for (int binIndex = 0; binIndex < totalBinCount; binIndex++) {
-            // Get the right number of samples from the inputFile
-            // Sum all the samples together and store them in the returnBuffer
+            int framesRead = inputFile.readFrames(sampleBuffer, BIN_SIZE);
+            returnBuffer[binIndex] = 0;
+            for (int sampleCount = 0; sampleCount < sampleBuffer.length; sampleCount++) {
+                returnBuffer[binIndex] += Math.abs(sampleBuffer[sampleCount]);
+            }
+            if (framesRead < BIN_SIZE && !(binIndex == totalBinCount - 1)) {
+                throw new WavFileException("short read from WAV File");
+            }
         }
         return returnBuffer;
     }
@@ -81,15 +86,46 @@ public class MorseDecoder {
          * There are four conditions to handle. Symbols should only be output when you see
          * transitions. You will also have to store how much power or silence you have seen.
          */
+        boolean isPower = false;
+        boolean wasPower = false;
+        boolean isSilence = false;
+        boolean wasSilence = false;
+        String morse = "";
 
+        for (int i = 1; i < powerMeasurements.length; i++) {
+            if (powerMeasurements[i] > 0) {
+                isPower = true;
+            } else {
+                isPower = false;
+            }
+            if (powerMeasurements[i - 1] > 0) {
+                wasPower = true;
+            } else {
+                wasPower = false;
+            }
+            if (powerMeasurements[i] > 0) {
+                isSilence = false;
+            } else {
+                isSilence = true;
+            }
+            if (powerMeasurements[i - 1] > 0) {
+                wasSilence = false;
+            } else {
+                wasSilence = true;
+            }
         // if ispower and waspower
-        // else if ispower and not waspower
-        // else if issilence and wassilence
-        // else if issilence and not wassilence
-
-        return "";
+        if (isPower && wasPower) {
+            morse += "-";
+        } else if (isPower && !wasPower) {
+            morse += ".";
+        } else if (isSilence && wasSilence) {
+            morse += " ";
+        } else if (isSilence && !wasSilence) {
+            morse += "";
+        }
+        }
+        return morse;
     }
-
     /**
      * Morse code to alpha mapping.
      *
